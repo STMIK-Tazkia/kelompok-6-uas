@@ -49,7 +49,7 @@ def astar_search(start, goal):
     open_list = []
     heapq.heappush(open_list, (0, start))
     came_from = {}
-    g_cost = {hero.name: float('inf') for hero in heroes}
+    g_cost = {hero.name: float("inf") for hero in heroes}
     g_cost[start] = 0
 
     while open_list:
