@@ -1,87 +1,88 @@
 import heapq
+import networkx as nx
+import matplotlib.pyplot as plt
 
-class HeroNode:
-    def __init__(self, name, lane, role, cost=0, heuristic=0):
-        self.name = name
-        self.lane = lane
-        self.role = role
-        self.cost = cost
-        self.heuristic = heuristic
-        self.total_cost = cost + heuristic
+class Graph:
+    def __init__(self):
+        self.nodes = {}
 
-    def __lt__(self, other):
-        return self.total_cost < other.total_cost
+    def add_node(self, node):
+        if node not in self.nodes:
+            self.nodes[node] = []
 
-heroes = [
-    HeroNode("Alucard", "Exp Lane", "Fighter"),
-    HeroNode("Esmeralda", "Exp Lane", "Tank/Fighter"),
-    HeroNode("Layla", "Gold Lane", "Marksman"),
-    HeroNode("Claude", "Gold Lane", "Marksman"),
-    HeroNode("Gusion", "Mid Lane", "Assassin"),
-    HeroNode("Nana", "Mid Lane", "Support"),
-    HeroNode("Selena", "Mid Lane", "Assassin/Support"),
-    HeroNode("Tigreal", "Roam", "Tank")
-]
+    def add_edge(self, node1, node2, cost):
+        self.nodes[node1].append((node2, cost))
+        self.nodes[node2].append((node1, cost))
 
-connections = {
-    "Alucard": ["Esmeralda"],
-    "Layla": ["Claude"],
-    "Gusion": ["Nana", "Selena"],
-    "Tigreal": ["Alucard", "Layla"],
-    "Nana": ["Gusion"],
-    "Esmeralda": ["Tigreal"],
-    "Claude": ["Layla"],
-    "Selena": ["Gusion"]
-}
+    def heuristic(self, node, goal):
+        return abs(ord(node[0]) - ord(goal[0]))  # Heuristik sederhana berdasarkan karakter ASCII
 
-heuristic_estimates = {
-    "Alucard": 5,
-    "Layla": 3,
-    "Gusion": 2,
-    "Tigreal": 4,
-    "Nana": 1,
-    "Esmeralda": 6,
-    "Claude": 3,
-    "Selena": 2
-}
+    def astar(self, start, goal):
+        open_set = []
+        heapq.heappush(open_set, (0, start))
+        came_from = {}
+        g_score = {node: float('inf') for node in self.nodes}
+        g_score[start] = 0
+        f_score = {node: float('inf') for node in self.nodes}
+        f_score[start] = self.heuristic(start, goal)
 
-def astar_search(start, goal):
-    open_list = []
-    heapq.heappush(open_list, (0, start))
-    came_from = {}
-    g_cost = {hero.name: float("inf") for hero in heroes}
-    g_cost[start] = 0
+        while open_set:
+            _, current = heapq.heappop(open_set)
 
-    while open_list:
-        _, current = heapq.heappop(open_list)
+            if current == goal:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append(start)
+                return path[::-1]
 
-        if current == goal:
-            path = []
-            while current is not None:
-                path.append(current)
-                current = came_from.get(current, None)
-            return path[::-1]
+            for neighbor, cost in self.nodes[current]:
+                tentative_g_score = g_score[current] + cost
+                if tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = g_score[neighbor] + self.heuristic(neighbor, goal)
+                    heapq.heappush(open_set, (f_score[neighbor], neighbor))
+        
+        return None  # Jika tidak ada jalur
 
-        for neighbor_name in connections.get(current, []):
-            tentative_g_cost = g_cost[current] + 1
+    def draw_graph(self, path=None):
+        G = nx.Graph()
+        for node in self.nodes:
+            for neighbor, cost in self.nodes[node]:
+                G.add_edge(node, neighbor, weight=cost)
 
-            if tentative_g_cost < g_cost[neighbor_name]:
-                g_cost[neighbor_name] = tentative_g_cost
-                f_cost = tentative_g_cost + heuristic_estimates[neighbor_name]
-                heapq.heappush(open_list, (f_cost, neighbor_name))
-                came_from[neighbor_name] = current
+        pos = nx.spring_layout(G)
+        labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=3000, font_size=10)
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+        
+        if path:
+            edges = [(path[i], path[i+1]) for i in range(len(path)-1)]
+            nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color='red', width=2)
+        
+        plt.show()
 
-    return None
+# Contoh penggunaan
+graph = Graph()
+nodes = ['EXP Lane', 'Gold Lane', 'Mid Lane', 'Jungle', 'Base', 'Lord Pit', 'Enemy Base']
+for node in nodes:
+    graph.add_node(node)
 
-start_hero = input("Masukkan nama hero awal: ").strip()
-goal_hero = input("Masukkan nama hero tujuan: ").strip()
+graph.add_edge('Base', 'Mid Lane', 2)
+graph.add_edge('Base', 'Jungle', 4)
+graph.add_edge('Mid Lane', 'EXP Lane', 7)
+graph.add_edge('Jungle', 'EXP Lane', 1)
+graph.add_edge('EXP Lane', 'Gold Lane', 3)
+graph.add_edge('Gold Lane', 'Lord Pit', 5)
+graph.add_edge('Jungle', 'Lord Pit', 8)
+graph.add_edge('Lord Pit', 'Enemy Base', 6)
 
-result_path = astar_search(start_hero, goal_hero)
+hero = "Ling"
+start = 'Base'
+goal = 'Enemy Base'
+path = graph.astar(start, goal)
+print(f"{hero} bergerak melalui jalur terbaik:", path)
 
-if result_path:
-    print("Path ditemukan:")
-    for step in result_path:
-        hero = next((h for h in heroes if h.name == step), None)
-        print(f"{hero.name} -> Lane: {hero.lane}, Role: {hero.role}")
-else:
-    print("Path tidak ditemukan")
+graph.draw_graph(path)
