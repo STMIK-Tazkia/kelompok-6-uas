@@ -15,7 +15,7 @@ class Graph:
         self.nodes[node2].append((node1, cost))
 
     def heuristic(self, node, goal):
-        return abs(ord(node[0]) - ord(goal[0]))  # Heuristik sederhana berdasarkan karakter ASCII
+        return abs(ord(node[0]) - ord(goal[0]))  # Heuristik Sederhana berdasarkan karakter ASCII
 
     def astar(self, start, goal):
         open_set = []
